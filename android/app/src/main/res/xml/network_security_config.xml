@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 9 (API 28) and later block cleartext traffic by default, and Android
+  10+ additionally restrict raw sockets to apps with an explicit policy.
+
+  Aero does not use cleartext HTTP for anything: the transport is TLS over TCP
+  and both ends present certificates. But the *local network* still needs to be
+  reachable, and without an explicit policy some OEM builds block the UDP
+  multicast sends that mDNS depends on, which surfaces as a permission error
+  inside the discovery plugin rather than as a clear message.
+
+  The domain entries below are therefore about reachability, not encryption:
+  `localhost` plus the private ranges and the mDNS multicast group. No public
+  host is ever contacted.
+-->
+<network-security-config>
+    <!-- Aero never speaks cleartext; this is the default posture. -->
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <!-- The mDNS multicast group used by bonsoir's TXT-record query. -->
+        <domain includeSubdomains="true">224.0.0.251</domain>
+        <domain includeSubdomains="true">239.255.255.250</domain>
+    </domain-config>
+</network-security-config>

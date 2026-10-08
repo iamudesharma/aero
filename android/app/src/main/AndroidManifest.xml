@@ -1,0 +1,104 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Local file transfer needs to discover and serve peers on the LAN.
+         mDNS discovers them, and the TLS server binds a TCP port for it.
+         All are install-time (normal/dangerous) permissions, but a couple are
+         required or the device runs but sees no peers — the failure mode that
+         is hardest to debug because the app looks fine. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Needed to *receive* mDNS announcements, whichbonsoir's NsdManager does
+         by joining a multicast group. Without it registration may succeed but
+         discovery never updates — a silent bug. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Android 11+ requires a runtime Nearby-devices permission for many
+         background network operations. Normal on API 31+; declared so the
+         OS does not prompt oddly. -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+    <!-- Android 15+ runtime-local-network gate. Granting it on newer devices
+         is required for the socket to connect; on the target (Android ~13) it
+         is a no-op but harmless. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
+    <!-- Direct-transfer fallback. `startLocalOnlyHotspot` needs
+         NEARBY_WIFI_DEVICES on Android 13+ and ACCESS_FINE_LOCATION before
+         that. Both are runtime permissions, requested on first use by the
+         "Direct transfer" action rather than at launch. maxSdkVersion on the
+         location permission keeps it from being requested on 13+, where it is
+         no longer the gate. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="32" />
+    <!-- `WifiManager.startLocalOnlyHotspot` itself is gated on CHANGE_WIFI_STATE:
+         it returns permission_denied, not a "not supported" error, when this is
+         absent, so the failure looks like a device limitation rather than a
+         missing manifest entry. This is what the real-device hotspot probe
+         caught (WifiService: Neither user nor current process has
+         android.permission.CHANGE_WIFI_STATE). It is a normal, install-time
+         permission, so declaring it is enough — no runtime request needed. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
+    <!-- BLE rendezvous (discovery/pairing only, never file data). Android 12+
+         splits Bluetooth into ADVERTISE/CONNECT runtime permissions; the legacy
+         BLUETOOTH/BLUETOOTH_ADMIN entries are capped at API 30 so they are not
+         requested on newer releases. usesPermissionFlags="neverForLocation"
+         is declared because Aero uses BLE purely for proximity discovery and
+         never infers physical location from it. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
+    <application
+        android:label="aero"
+        android:name="${applicationName}"
+        usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
